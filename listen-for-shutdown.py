@@ -13,6 +13,7 @@ from datetime import datetime
 from gpiozero import Button
 from time import sleep
 import os
+from pathlib import Path
 
 sleep_time = 0.1  # run loop 10x/sec
 button_hold_time = 3  # require 3 second hold to shut down pi
@@ -24,13 +25,20 @@ def shutdown():
     - if any external drives mounted, does not shutdown
     - returns True if shutdown happens, false otherwise"""
     # if any external drives are mounted, do not shut down
-    num_external_drives = len(os.listdir("/media/pi"))
+    # (/media/pi might not exist of no external drives!)
+    if Path("/media/pi").exists():
+        num_external_drives = len(os.listdir("/media/pi"))
+    else:
+        num_external_drives = 0
+
     if num_external_drives > 0:
         # do not shut down.
         # add event to the log.
         with open("/home/pi/shutdown_log.txt", "a+") as f:
             f.write(f"{datetime.now()}: Shutdown blocked due to mounted drives.\n")
-
+            # don't continue checking and writing log until button is released
+            while power_button.is_held:
+                sleep(sleep_time)
         return False
 
     else:  # shutdown
